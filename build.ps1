@@ -1,4 +1,4 @@
-param([switch]$SkipTests)
+param([switch]$SkipTests, [string]$OutputDirectory = 'dist\StalkerTrainer')
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '.dotnet'
@@ -14,18 +14,19 @@ if (-not $SkipTests) {
     dotnet run --project 'tests\StalkerTrainer.Tests\StalkerTrainer.Tests.csproj' -c Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 }
-dotnet publish 'src\StalkerTrainer\StalkerTrainer.csproj' -c Release --no-restore --self-contained false -o 'dist\StalkerTrainer'
+$taskPublishPath = Join-Path $PSScriptRoot $OutputDirectory
+dotnet publish 'src\StalkerTrainer\StalkerTrainer.csproj' -c Release --no-restore --self-contained false -o $taskPublishPath
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
-Copy-Item -LiteralPath 'README.ru.md' -Destination 'dist\StalkerTrainer\README.ru.md' -Force
-Copy-Item -LiteralPath 'VALIDATION.md' -Destination 'dist\StalkerTrainer\VALIDATION.md' -Force
-Compress-Archive -Path 'dist\StalkerTrainer' -DestinationPath 'dist\StalkerTrainer-CSharp.zip' -Force
+Copy-Item -LiteralPath 'README.ru.md', 'VALIDATION.md' -Destination $taskPublishPath -Force
+New-Item -ItemType Directory -Force 'dist' | Out-Null
+Compress-Archive -LiteralPath $taskPublishPath -DestinationPath 'dist\StalkerTrainer-CSharp.zip' -Force
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $taskSourceZipPath = Join-Path $PSScriptRoot 'dist\StalkerTrainer-CSharp-Source.zip'
 $taskSourceStream = [IO.File]::Open($taskSourceZipPath, [IO.FileMode]::Create)
 $taskSourceZip = New-Object IO.Compression.ZipArchive($taskSourceStream, [IO.Compression.ZipArchiveMode]::Create, $false)
 try {
-    $taskSourceFiles = @('README.ru.md', 'VALIDATION.md', 'build.ps1', 'NuGet.Config', 'global.json', '.gitignore') | ForEach-Object { Get-Item -LiteralPath $_ }
+    $taskSourceFiles = @('README.md', 'README.ru.md', 'VALIDATION.md', 'build.ps1', 'NuGet.Config', 'global.json', '.gitignore') | ForEach-Object { Get-Item -LiteralPath $_ }
     $taskSourceFiles += Get-ChildItem -LiteralPath 'src', 'tests' -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' }
     foreach ($taskSourceFile in $taskSourceFiles) {
         $taskEntryName = $taskSourceFile.FullName.Substring($PSScriptRoot.Length + 1).Replace('\', '/')
@@ -33,4 +34,4 @@ try {
     }
 }
 finally { $taskSourceZip.Dispose(); $taskSourceStream.Dispose() }
-Write-Output 'Ready: dist\StalkerTrainer\StalkerTrainer.exe'
+Write-Output ('Ready: ' + (Join-Path $taskPublishPath 'StalkerTrainer.exe'))

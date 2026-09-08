@@ -140,10 +140,11 @@ public sealed class MainForm : Form
 
     private Control CreateFeaturePanel()
     {
-        var panel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 8 };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        for (var i = 0; i < 5; i++) panel.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
+        const int columns = 3;
+        int rows = (TrainerFeatures.Descriptions.Length + columns - 1) / columns;
+        var panel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = columns, RowCount = rows + 3 };
+        for (var i = 0; i < columns; i++) panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / columns));
+        for (var i = 0; i < rows; i++) panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
@@ -151,23 +152,24 @@ public sealed class MainForm : Form
         {
             var feature = TrainerFeatures.Descriptions[i];
             var card = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(8), Margin = new Padding(5), BackColor = Surface };
+            card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             card.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            var button = Button(feature.Name + "   ·   ВЫКЛ", () => ToggleFeature(feature.Id), 430);
+            var button = Button(feature.Name + "   ·   ВЫКЛ", () => ToggleFeature(feature.Id), 250);
             button.Dock = DockStyle.Fill;
             button.Height = 36;
             _featureButtons.Add(feature.Id, button);
             card.Controls.Add(button, 0, 0);
             card.Controls.Add(new Label { Text = feature.Detail, Dock = DockStyle.Fill, ForeColor = Color.Silver, Font = new Font("Segoe UI", 9), Padding = new Padding(4, 4, 0, 0) }, 0, 1);
-            panel.Controls.Add(card, i % 2, i / 2);
+            panel.Controls.Add(card, i % columns, i / columns);
         }
         _featureStatus.Margin = new Padding(6, 10, 0, 0);
-        panel.Controls.Add(_featureStatus, 0, 5); panel.SetColumnSpan(_featureStatus, 2);
+        panel.Controls.Add(_featureStatus, 0, rows); panel.SetColumnSpan(_featureStatus, columns);
         var actions = Flow();
         actions.Controls.AddRange([Button("Выключить всё · Ctrl+Alt+End", ReleaseAll, 320), Button("Инструкция", OpenHelp, 155)]);
-        panel.Controls.Add(actions, 0, 6); panel.SetColumnSpan(actions, 2);
+        panel.Controls.Add(actions, 0, rows + 1); panel.SetColumnSpan(actions, columns);
         var note = new Label { Text = "Оставь трейнер открытым. После загрузки сохранения подключись заново.\nГотовые функции рассчитаны на проверенную сборку EXE; при выходе флаги и модификаторы восстанавливаются.", Dock = DockStyle.Fill, ForeColor = Color.Silver, Font = new Font("Segoe UI", 9), Padding = new Padding(6, 6, 0, 0) };
-        panel.Controls.Add(note, 0, 7); panel.SetColumnSpan(note, 2);
+        panel.Controls.Add(note, 0, rows + 2); panel.SetColumnSpan(note, columns);
         return panel;
     }
 

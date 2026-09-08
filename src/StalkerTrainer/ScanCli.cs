@@ -16,11 +16,20 @@ internal static class ScanCli
             if (args.Length < 1) throw new ArgumentException("--scan-money VALUE OUTPUT.json | --refine-money INPUT.json VALUE OUTPUT.json");
             using var process = InstallationInfo.FindRunning(InstallationInfo.DefaultRoot)
                 ?? throw new InvalidOperationException("STALKER 2 process not found or its path is inaccessible.");
-            var writeMode = args[0] is "--verify-money-write" or "--verify-player-flags" or "--test-features" or "--test-accuracy";
+            var writeMode = args[0] is "--verify-money-write" or "--verify-player-flags" or "--test-features" or "--test-accuracy" or "--test-grenades";
             using var memory = new ProcessMemory(process.Id, writable: writeMode);
             var scanner = new MemoryScanner(memory);
             var started = process.StartTime.ToUniversalTime().Ticks;
-            if (args is ["--test-features" or "--test-accuracy", var secondsText])
+            if (args is ["--inspect-grenades"])
+            {
+                _ = KnownMoneyFeature.TryCreate(process, memory) ?? throw new InvalidOperationException("Unsupported EXE.");
+                ulong moduleBase = (ulong)process.MainModule!.BaseAddress;
+                var player = new PlayerLocator(memory, moduleBase).Resolve();
+                foreach (var item in new GrenadeInventory(memory, moduleBase).Find(player))
+                    Console.WriteLine($"Grenade: handle=0x{item.Handle:X}; count={item.Count}; address=0x{item.Address:X}; prototype=0x{item.Prototype:X}");
+                return 0;
+            }
+            if (args is ["--test-features" or "--test-accuracy" or "--test-grenades", var secondsText])
             {
                 int seconds = int.Parse(secondsText);
                 if (seconds is < 1 or > 600) throw new ArgumentException("Duration must be 1..600 seconds.");
@@ -30,13 +39,16 @@ internal static class ScanCli
                 try
                 {
                     bool accuracyOnly = args[0] == "--test-accuracy";
-                    if (!accuracyOnly)
-                        foreach (var feature in TrainerFeatures.Descriptions.Where(f => f.Id != FeatureId.NoReload)) features.Set(feature.Id, true);
+                    bool grenadesOnly = args[0] == "--test-grenades";
+                    if (grenadesOnly) features.Set(FeatureId.InfiniteGrenades, true);
+                    else if (!accuracyOnly)
+                        foreach (var feature in TrainerFeatures.Descriptions.Where(f => f.Id != FeatureId.NoReload && f.Id != FeatureId.InfiniteGrenades)) features.Set(feature.Id, true);
                     Console.WriteLine($"{args[0]} active for {seconds}s. {features.Status}");
                     var watch = Stopwatch.StartNew();
                     int report = -1;
                     while (watch.Elapsed.TotalSeconds < seconds)
                     {
+                        if (grenadesOnly && File.Exists("artifacts/grenade-test.stop")) break;
                         if (accuracyOnly && !features.IsEnabled(FeatureId.Accuracy))
                         {
                             var held = new EquipmentLocator(memory, moduleBase).HeldHandle(features.Player);

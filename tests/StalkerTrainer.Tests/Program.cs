@@ -194,6 +194,7 @@ var tests = new List<(string Name, Action Run)>
 };
 
 tests.AddRange(FeatureTests.All);
+tests.AddRange(GrenadeTests.All);
 var failures = 0;
 foreach (var (name, run) in tests)
 {

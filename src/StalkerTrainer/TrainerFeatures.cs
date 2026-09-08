@@ -2,7 +2,7 @@ using StalkerTrainer.Core;
 
 namespace StalkerTrainer;
 
-internal enum FeatureId { God, InfiniteAmmo, NoReload, Durability, Accuracy, Stamina, NoHunger, NoRadiation, NoBleeding, NoDrowsiness }
+internal enum FeatureId { God, InfiniteAmmo, NoReload, Durability, Accuracy, Stamina, NoHunger, NoRadiation, NoBleeding, NoDrowsiness, InfiniteGrenades }
 internal sealed record FeatureDescription(FeatureId Id, string Name, string Detail);
 
 internal sealed class TrainerFeatures
@@ -18,7 +18,8 @@ internal sealed class TrainerFeatures
         new(FeatureId.NoHunger, "Без голода", "Удержание голода на нуле"),
         new(FeatureId.NoRadiation, "Без радиации", "Удаление накопленной радиации"),
         new(FeatureId.NoBleeding, "Без кровотечения", "Удержание кровотечения на нуле"),
-        new(FeatureId.NoDrowsiness, "Без сонливости", "Удержание сонливости на нуле")
+        new(FeatureId.NoDrowsiness, "Без сонливости", "Удержание сонливости на нуле"),
+        new(FeatureId.InfiniteGrenades, "Бесконечные гранаты", "Восполнение запаса; нужна хотя бы одна граната")
     ];
 
     private readonly IGameMemory _memory;
@@ -26,6 +27,7 @@ internal sealed class TrainerFeatures
     private readonly EquipmentLocator _equipment;
     private readonly ModifierLocator _modifiers;
     private readonly WeaponAccuracy _accuracy;
+    private readonly InfiniteGrenades _grenades;
     private readonly PlayerLocation _player;
     private readonly HashSet<FeatureId> _enabled = [];
     private readonly Dictionary<FeatureId, uint> _originalFlags = [];
@@ -45,6 +47,7 @@ internal sealed class TrainerFeatures
         _equipment = new(memory, moduleBase);
         _modifiers = new(memory);
         _accuracy = new(memory, moduleBase);
+        _grenades = new(new GrenadeInventory(memory, moduleBase));
         _player = _players.Resolve();
         _weapon = _equipment.HeldHandle(_player);
     }
@@ -66,6 +69,7 @@ internal sealed class TrainerFeatures
         uint mask = Flag(id);
         if (enabled)
         {
+            if (id == FeatureId.InfiniteGrenades) _grenades.Start(_player);
             if (id == FeatureId.Accuracy && _accuracy.Resolve(_equipment.HeldHandle(_player)) is null)
                 throw new InvalidOperationException("Возьми огнестрельное оружие в руки, затем включи точность.");
             if (mask != 0)
@@ -86,6 +90,7 @@ internal sealed class TrainerFeatures
                 _originalFlags.Remove(id);
             }
             _enabled.Remove(id);
+            if (id == FeatureId.InfiniteGrenades) _grenades.Stop();
             if (id == FeatureId.Accuracy) _accuracy.Restore();
             if (id == FeatureId.Durability) _durability.Clear();
             RestoreUnusedOverrides();
@@ -133,6 +138,7 @@ internal sealed class TrainerFeatures
     internal void Tick()
     {
         ValidatePlayer();
+        if (IsEnabled(FeatureId.InfiniteGrenades)) _grenades.Tick(_player);
         uint weapon = _equipment.HeldHandle(_player);
         if (IsEnabled(FeatureId.Accuracy)) _accuracy.Tick(weapon);
         if (weapon != _weapon)
@@ -181,7 +187,8 @@ internal sealed class TrainerFeatures
         {
             if (IsEnabled(FeatureId.Durability)) OverrideModifier(0x7E);
         }
-        Status = $"Активно: {_enabled.Count} из {Descriptions.Length}" + (gearCount > 0 ? $"  •  Защищено предметов: {gearCount}" : "");
+        Status = $"Активно: {_enabled.Count} из {Descriptions.Length}" + (gearCount > 0 ? $"  •  Защищено предметов: {gearCount}" : "")
+            + (IsEnabled(FeatureId.InfiniteGrenades) ? $"  •  Стопок гранат: {_grenades.ProtectedStacks}" : "");
     }
 
     internal void StopAll()
@@ -193,6 +200,7 @@ internal sealed class TrainerFeatures
         foreach (var (id, original) in _originalFlags) value = (value & ~Flag(id)) | original;
         if (value != before.Bits) _memory.WriteValue(_player.Address + 0x13C, new(ValueKind.Int32, value), before);
         _enabled.Clear(); _originalFlags.Clear(); _durability.Clear();
+        _grenades.Stop();
         _accuracy.Restore();
         RestoreUnusedOverrides();
         Status = "Все функции выключены";
