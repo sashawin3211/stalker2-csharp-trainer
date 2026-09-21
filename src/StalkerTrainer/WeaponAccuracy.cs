@@ -6,7 +6,7 @@ internal sealed record WeaponRuntime(uint Handle, ulong Model, ulong Cache);
 
 internal sealed class WeaponAccuracy(IGameMemory memory, ulong moduleBase)
 {
-    // WeaponRuntimeData, returned by RVA 0x1EEDAC as cache + 8. RVA 0x6BB99A
+    // WeaponRuntimeData, returned by RVA 0x617992 as cache + 8. RVA 0x61159A
     // multiplies these base radii before applying buffs: normal/first shot and recoil.
     internal static readonly uint[] RadiusOffsets = [0x1F0, 0x1F4, 0x280];
     private readonly EquipmentLocator _equipment = new(memory, moduleBase);
@@ -16,7 +16,7 @@ internal sealed class WeaponAccuracy(IGameMemory memory, ulong moduleBase)
     internal WeaponRuntime? Resolve(uint handle)
     {
         var item = _equipment.ReadItem(handle, "В руках");
-        if (item is null || memory.ReadValue(item.Model, ValueKind.Int64).Bits != moduleBase + 0x8EA6DB0) return null;
+        if (item is null || memory.ReadValue(item.Model, ValueKind.Int64).Bits != moduleBase + GameProfile.WeaponModelVtable) return null;
         ulong cache = memory.ReadValue(item.Model + 0x90, ValueKind.Int64).Bits;
         if (cache < 0x10000 || cache >= 0x7FFFFFFF0000) throw new IOException("Данные стрельбы недоступны.");
         byte[] dirty = new byte[1];

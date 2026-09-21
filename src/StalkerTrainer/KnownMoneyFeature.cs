@@ -7,10 +7,10 @@ namespace StalkerTrainer;
 
 internal sealed class KnownMoneyFeature(ProcessMemory memory, ulong address)
 {
-    // Located in writable module data and verified in game: 32712 -> 32812 coupons.
+    // Located in writable module data; current build's value matched 105000 in game.
     // Resolve against the actual process module base, never against a fixed virtual address.
-    internal const ulong RelativeAddress = 0x0A7FC940;
-    internal const string ExecutableSha256 = "2ECC5D19FE37F97E3F7F2467D652B299B5A47F010FA49FD803A49A4A6930A409";
+    internal const ulong RelativeAddress = GameProfile.Money;
+    internal const string ExecutableSha256 = GameProfile.ExecutableSha256;
     internal ulong Address => address;
 
     internal static KnownMoneyFeature? TryCreate(Process process, ProcessMemory memory)

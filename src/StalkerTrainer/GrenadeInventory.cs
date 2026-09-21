@@ -6,8 +6,8 @@ internal sealed record GrenadeStack(uint Handle, ulong Address, ulong Owner, ulo
 
 internal sealed class GrenadeInventory(IGameMemory memory, ulong moduleBase)
 {
-    internal const ulong PoolRva = 0xA774850;
-    internal const ulong ModelVtableRva = 0x8EA5430;
+    internal const ulong PoolRva = GameProfile.ItemPool;
+    internal const ulong ModelVtableRva = GameProfile.GrenadeModelVtable;
     private const uint ChunkSize = 4096, ItemSize = 0x88, MaxChunks = 64;
     private static bool Pointer(ulong p) => p >= 0x10000 && p < 0x7FFFFFFF0000;
 

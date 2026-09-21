@@ -12,7 +12,7 @@ internal sealed class EquipmentLocator(IGameMemory memory, ulong moduleBase)
         if (handle >= 0xFFFFFFF0) return null;
         uint index = handle & 0x7FFFFFF;
         if (index >= 262144) throw new IOException("Некорректный индекс предмета.");
-        ulong pool = moduleBase + 0xA774850;
+        ulong pool = moduleBase + GameProfile.ItemPool;
         while (index >= 4096)
         {
             pool = memory.ReadValue(pool, ValueKind.Int64).Bits;
@@ -25,9 +25,9 @@ internal sealed class EquipmentLocator(IGameMemory memory, ulong moduleBase)
         if (model < 0x10000) return null;
         if (memory.ReadValue(model + 0x18, ValueKind.Int64).Bits != item) throw new IOException("Связь предмета с моделью не совпала.");
         ulong table = memory.ReadValue(model + 0x28, ValueKind.Int64).Bits;
-        if (table < moduleBase + 0x7CC4000 || table >= moduleBase + 0x9E89000) return null;
+        if (table < moduleBase + GameProfile.ReadOnlyDataStart || table >= moduleBase + GameProfile.WritableDataStart) return null;
         ulong getter = memory.ReadValue(table + 8, ValueKind.Int64).Bits;
-        if (getter < moduleBase + 0x1000 || getter >= moduleBase + 0x7CC4000) return null;
+        if (getter < moduleBase + 0x1000 || getter >= moduleBase + GameProfile.ReadOnlyDataStart) return null;
         byte[] code = new byte[6];
         if (memory.Read(getter, code, code.Length) != code.Length ||
             code[0] != 0xF3 || code[1] != 0x0F || code[2] != 0x10 || code[3] != 0x41 || code[5] != 0xC3 || code[4] >= 0x80)

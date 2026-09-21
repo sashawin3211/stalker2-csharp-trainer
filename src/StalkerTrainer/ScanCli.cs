@@ -16,7 +16,7 @@ internal static class ScanCli
             if (args.Length < 1) throw new ArgumentException("--scan-money VALUE OUTPUT.json | --refine-money INPUT.json VALUE OUTPUT.json");
             using var process = InstallationInfo.FindRunning(InstallationInfo.DefaultRoot)
                 ?? throw new InvalidOperationException("STALKER 2 process not found or its path is inaccessible.");
-            var writeMode = args[0] is "--verify-money-write" or "--verify-player-flags" or "--test-features" or "--test-accuracy" or "--test-grenades";
+            var writeMode = args[0] is "--verify-money-write" or "--verify-player-flags" or "--test-features" or "--test-accuracy" or "--test-grenades" or "--test-update";
             using var memory = new ProcessMemory(process.Id, writable: writeMode);
             var scanner = new MemoryScanner(memory);
             var started = process.StartTime.ToUniversalTime().Ticks;
@@ -29,7 +29,7 @@ internal static class ScanCli
                     Console.WriteLine($"Grenade: handle=0x{item.Handle:X}; count={item.Count}; address=0x{item.Address:X}; prototype=0x{item.Prototype:X}");
                 return 0;
             }
-            if (args is ["--test-features" or "--test-accuracy" or "--test-grenades", var secondsText])
+            if (args is ["--test-features" or "--test-accuracy" or "--test-grenades" or "--test-update", var secondsText])
             {
                 int seconds = int.Parse(secondsText);
                 if (seconds is < 1 or > 600) throw new ArgumentException("Duration must be 1..600 seconds.");
@@ -40,7 +40,10 @@ internal static class ScanCli
                 {
                     bool accuracyOnly = args[0] == "--test-accuracy";
                     bool grenadesOnly = args[0] == "--test-grenades";
-                    if (grenadesOnly) features.Set(FeatureId.InfiniteGrenades, true);
+                    bool updateTest = args[0] == "--test-update";
+                    if (updateTest)
+                        foreach (var feature in TrainerFeatures.Descriptions.Where(f => f.Id != FeatureId.Accuracy)) features.Set(feature.Id, true);
+                    else if (grenadesOnly) features.Set(FeatureId.InfiniteGrenades, true);
                     else if (!accuracyOnly)
                         foreach (var feature in TrainerFeatures.Descriptions.Where(f => f.Id != FeatureId.NoReload && f.Id != FeatureId.InfiniteGrenades)) features.Set(feature.Id, true);
                     Console.WriteLine($"{args[0]} active for {seconds}s. {features.Status}");
@@ -48,8 +51,9 @@ internal static class ScanCli
                     int report = -1;
                     while (watch.Elapsed.TotalSeconds < seconds)
                     {
+                        if (updateTest && File.Exists("artifacts/update-test.stop")) break;
                         if (grenadesOnly && File.Exists("artifacts/grenade-test.stop")) break;
-                        if (accuracyOnly && !features.IsEnabled(FeatureId.Accuracy))
+                        if ((accuracyOnly || updateTest) && !features.IsEnabled(FeatureId.Accuracy))
                         {
                             var held = new EquipmentLocator(memory, moduleBase).HeldHandle(features.Player);
                             if (new WeaponAccuracy(memory, moduleBase).Resolve(held) is not null)
@@ -128,9 +132,9 @@ internal static class ScanCli
             {
                 _ = KnownMoneyFeature.TryCreate(process, memory) ?? throw new InvalidOperationException("Unsupported EXE.");
                 ulong moduleBase = (ulong)process.MainModule!.BaseAddress;
-                uint handle = (uint)memory.ReadValue(moduleBase + 0x9EDD140, ValueKind.Int32).Bits;
+                uint handle = (uint)memory.ReadValue(moduleBase + GameProfile.PlayerHandle, ValueKind.Int32).Bits;
                 uint index = handle & 0x7FFFFFF;
-                ulong pool = moduleBase + 0xA3237F0;
+                ulong pool = moduleBase + GameProfile.PlayerPool;
                 for (var n = 0; index >= 1024; n++)
                 {
                     if (n >= 64) throw new InvalidOperationException("Invalid player handle.");
@@ -148,7 +152,7 @@ internal static class ScanCli
                 ulong equipment = memory.ReadValue(address + 0x678, ValueKind.Int64).Bits;
                 uint weaponHandle = (uint)memory.ReadValue(equipment + 0x110, ValueKind.Int32).Bits;
                 uint weaponIndex = weaponHandle & 0x7FFFFFF;
-                ulong itemPool = moduleBase + 0xA774850;
+                ulong itemPool = moduleBase + GameProfile.ItemPool;
                 if (weaponIndex >= 65536) throw new IOException("No held weapon.");
                 while (weaponIndex >= 4096) { itemPool = memory.ReadValue(itemPool, ValueKind.Int64).Bits; weaponIndex -= 4096; }
                 ulong weapon = itemPool + 0x10 + weaponIndex * 0x88;

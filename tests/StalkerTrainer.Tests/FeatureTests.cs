@@ -101,15 +101,15 @@ internal sealed class GameFixture : IGameMemory
     public ulong Equipment => 0x300000;
     public ulong ActorEntry => 0x210000 + 5 * 24;
     public ulong Buckets => 0x600000;
-    public ulong Item => Base + 0xA774850 + 0x10 + 42 * 0x88;
+    public ulong Item => Base + GameProfile.ItemPool + 0x10 + 42 * 0x88;
     public ulong Model => 0x700000;
     public ulong Cache => 0x800000;
     public int Writes { get; private set; }
     public GameFixture()
     {
-        U32(Base + PlayerLocator.HandleRva, 0); U64(Player, Base + 0x8EA8610); U32(Player + 0x10, 0);
-        U64(Player + 0x50, (7UL << 32) | 5); U32(Base + 0xA0D7864, 100);
-        U64(Base + 0xA0D7850, 0x200000); U64(0x200000, 0x210000);
+        U32(Base + PlayerLocator.HandleRva, 0); U64(Player, Base + GameProfile.PlayerVtable); U32(Player + 0x10, 0);
+        U64(Player + 0x50, (7UL << 32) | 5); U32(Base + GameProfile.ObjectCount, 100);
+        U64(Base + GameProfile.ObjectChunks, 0x200000); U64(0x200000, 0x210000);
         U64(ActorEntry, 0x100000); U32(ActorEntry + 8, 0); U32(ActorEntry + 0x10, 7); U64(0x100650, Player);
         Float(Player + 0x14C, 100); Float(Player + 0x154, 100); U32(Player + 0x13C, 0);
         U64(Player + 0x678, Equipment); U64(Player + 0x668, 0x400000);
@@ -128,7 +128,7 @@ internal sealed class GameFixture : IGameMemory
         U32(Equipment + 0x110, 42); U32(Item + 8, 42); U64(Item + 0x30, Model); U64(Model + 0x18, Item);
         U64(Model + 0x28, Base + 0x8EA6E20); U64(Base + 0x8EA6E28, Base + 0x20D027A);
         Put(Base + 0x20D027A, [0xF3, 0x0F, 0x10, 0x41, 0x70, 0xC3]); Float(Model + 0x98, 0.9f);
-        U64(Model, Base + 0x8EA6DB0); U64(Model + 0x90, Cache); U32(Cache, 0);
+        U64(Model, Base + GameProfile.WeaponModelVtable); U64(Model + 0x90, Cache); U32(Cache, 0);
         Float(Cache + 8 + 0x1F0, 189); Float(Cache + 8 + 0x1F4, 100); Float(Cache + 8 + 0x280, 300);
     }
     public ulong Modifier(uint key) => 0x500004 + (ulong)Array.IndexOf(_keys, key) * 16;

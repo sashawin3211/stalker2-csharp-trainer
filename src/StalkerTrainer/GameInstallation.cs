@@ -5,7 +5,7 @@ namespace StalkerTrainer;
 
 internal sealed record InstallationInfo(string Root, string? BuildId, bool HasExecutable)
 {
-    internal const string ExpectedBuild = "24963344";
+    internal const string ExpectedBuild = GameProfile.BuildId;
     internal const string DefaultRoot = @"F:\SteamLibrary\steamapps\common\S.T.A.L.K.E.R. 2 Heart of Chornobyl";
     internal const string ProcessName = "Stalker2-Win64-Shipping";
     internal const string RelativeExe = @"Stalker2\Binaries\Win64\Stalker2-Win64-Shipping.exe";
